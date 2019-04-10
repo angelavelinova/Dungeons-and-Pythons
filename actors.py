@@ -81,6 +81,20 @@ class Hero(Actor):
     # - title
     # important invariant: a Hero's fist_damage will always be 0
     
+    def __init__(self, name, title, health, mana, mana_regeneration_rate):
+        self.name = name
+        self.title = title
+        self.health = health
+        self.mana = mana
+        self.mana_regeneration_rate = mana_regeneration_rate
+        
+        self.max_mana = mana
+        self.max_health = health
+        self.weapon = Weapon()
+        self.spell = Spell()
+h
+        
+
     @property
     def known_as(self):
         return f"{self.name} the {self.title}"
@@ -112,6 +126,15 @@ class Enemy(Actor):
     #                    it is included only for convenience.
     #  if the enemy does not know where the hero is, self.last_seen and
     #  self.hero_direction will both be None.
+
+    def __init__(self, health, mana, damage):
+        self.health = health
+        self.mana = mana
+        self.damage = damage
+
+        self.max_health = health
+        self.weapon = Weapon()
+        self.spell = Spell():
 
     def search_for_hero(self):
         # returns the position of the hero, or None if he can't be seen
@@ -153,7 +176,6 @@ class Enemy(Actor):
             # damage and inflicts it on the hero.
 
             if self.weapon.damage > self.fist_damage:
-                if self.mana >= self.spell.
                 by = 'weapon' if self.weapon.damage >= self.spell.damage else 'spell'
             else:
                 by = 'fist' if self.fist_damage >= self.spell.damage else 'spell'

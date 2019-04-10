@@ -3,7 +3,7 @@
       "hero":{
          "name":"Bron",
          "title":"dragon slayer",
-         "health":100         ", "         mana":100,
+         "health":100, "mana":100,
          "mana_regeneration_rate":2
       },
       "enemies":[
