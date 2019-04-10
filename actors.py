@@ -9,12 +9,12 @@ class Actor:
     # - mana
     # - max_mana
     # - map
+    # - pos: a valid position within map    
     # - weapon
     #     all actors have a weapon. by default it is weapon.plastic_sword,
     #     which inflicts no damage.
     # - spell
     #     all actors have a spell. by default it is spell.TODO
-    # - pos: a valid position within map
     # - fist_damage
     
     @property
@@ -69,17 +69,30 @@ class Actor:
     def attack(self, by, direction):
         # @by must be in {'weapon', 'spell', 'fist'}
         # @direction must be in {'up', 'down', 'left', 'right'}
-        
-        raise NotImplementedError
-        
+
+        nemesis_pos = utils.move_position(self.pos, direction)
+        nemesis = self.map[nemesis_pos]
+
+        if by == 'weapon':
+            nemesis.take_damage(self.weapon.damage)
+        elif by == 'spell':
+            if self.mana >= self.spell.mana_cost:
+                nemesis.take_damage(self.spell.damage)
+            else:
+                raise ValueError('not enough mana')
+        else:
+            nemesis.take_damage(self.fist_damage)
+                
             
-
-
 class Hero(Actor):
     # a Hero has the following additional attributes:
     # - name
     # - title
     # important invariant: a Hero's fist_damage will always be 0
+
+    @classmethod
+    def from_dict(cls, d):
+        raise NotImplementedError
     
     @property
     def known_as(self):
@@ -113,6 +126,10 @@ class Enemy(Actor):
     #  if the enemy does not know where the hero is, self.last_seen and
     #  self.hero_direction will both be None.
 
+    @classmethod
+    def from_dict(cls, d):
+        p
+    
     def search_for_hero(self):
         # returns the position of the hero, or None if he can't be seen
         # @self will only look up, down, left and right
@@ -151,14 +168,8 @@ class Enemy(Actor):
             # Call only when the hero is next to @self!
             # The enemy determines the attack type dealing the most
             # damage and inflicts it on the hero.
-
-            if self.weapon.damage > self.fist_damage:
-                if self.mana >= self.spell.
-                by = 'weapon' if self.weapon.damage >= self.spell.damage else 'spell'
-            else:
-                by = 'fist' if self.fist_damage >= self.spell.damage else 'spell'
-
-            self.attack(by, self.hero_direction)
+            
+            self.attack('fist', self.hero_direction)
         
         hero_pos = self.search_for_hero()
         if hero_pos is None:

@@ -1,3 +1,7 @@
+import json
+from weapon import Weapon
+from spell import Spell
+
 # ========================================
 # constants
 
@@ -12,10 +16,13 @@ HERO = 'H'
 # ========================================
 
 class Map:
+    def __init__(self, matrix):
+        self.matrix = matrix
+    
     @property
     def nrows(self):
         # returns the number of rows in @self
-        raise NotImplementedError
+        pass
 
     @property
     def ncols(self):
@@ -27,7 +34,7 @@ class Map:
         raise NotImplementedError
 
     def contains_treasure_at(self, pos):
-        # returns True iff self[pos] is a treasure
+        # returns True iff self[pos] is a treasure chest
         raise NotImplementedError
     
     def can_move_to(self, pos):
@@ -51,12 +58,13 @@ class Map:
 
     def __getitem__(self, pos):
         # pos must be a pair (<row-index>, <column-index>)
-        raise NotImplementedError
+        row, col = pos
+        return self.matrix[row][col]
 
     def __setitem__(self, pos, value):
         # pos must be a pair (<row-index>, <column-index>)
-        # 
-        raise NotImplementedError
+        row, col = pos
+        self.matrix[row][col] = value
     
     def positions(self, pos, direction):
         # direction must be one in {'up', 'down', 'left', 'right'}.
@@ -110,13 +118,64 @@ class Game:
                 return Game.KILLED
 
 class Dungeon:
-    @classmethod
-    def from_file(cls, path):
-        # Returns the Dungeon corresponding to the text of the file at @path.
-        raise NotImplementedError
+    # attributes:
+    #  - hero_dict
+    #  - enemy_dicts
+    #  - map_template
+    #  - treasures
+    
+    @staticmethod
+    def from_file(path):
+        with open(path) as f:
+            text = f.read()
+        return Dungeon.from_dict(json.loads(text))
+    
+    @staticmethod
+    def from_dict(d):
+        result = Dungeon.__new__(Dungeon)
+        result.hero_dict = d['hero']
+        result.enemy_dicts = d['enemies']
+        result.map_template = d['map']
 
+        treasures = []
+        for treasure_dict in dict['treasures']:
+            treasure_type = treasure_dict['type']
+            if treasure_type == 'weapon':
+                name, damage = treasure_dict['name'], treasure_dict['damage']
+                treasures.append(Treasure(name, damage))
+            elif treasure_type == 'spell':
+                name, damage, mana_cost, cast_range = [treasure_dict[attr]
+                                                       for attr in ('name', 'damage', 'mana_cost', 'cast_range')]
+                treasures.append(Spell(name, damage, mana_cost, cast_range))
+            elif treasure_type == 'health':
+                treasures.append(potions.HealthPotion(treasure_dict['amount']))
+            elif treasure_type == 'mana':
+                treasures.append(potions.ManaPotion(treasure_dict['amount']))
+        
+        result.treasures = treasures
+        return result
+        
     def create_game(self, spawn_location):
         # @spawn_location must be one of @self's spawn locations.
         # Returns the Game instance with the hero at @spawn_location.
-        raise NotImplementedError
+        # remember to set the hero and enemies map and pos
+        
+        def make_map():
+            result = [list(row) for row in self.map_template]
+            nrows = len(result)
+            ncols = len(result[0])
+            for rowi in range(nrows):
+                for coli in range(ncols):
+                    char = result[rowi][coli]
+                    if char == 'S':
+                        if (rowi, coli) == spawn_location:
+                            result[rowi][coli] = hero
+                            hero.pos = (rowi, coli)
+                        
 
+        hero = Hero.from_dict(self.hero_dict)
+        enemies = [Enemy.from_dict(enemy_dict) for enemy_dict in self.enemy_dicts]
+        game_map = make_map()
+        # set hero and enemies' maps to game_map
+        return Game(hero, enemies, game_map)
+        
