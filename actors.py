@@ -1,5 +1,5 @@
 import utils
-from treasure import TreasureChest
+import treasures
 
 class Actor:
     # base class for Enemy and Hero
@@ -11,10 +11,7 @@ class Actor:
     # - map
     # - pos: a valid position within map    
     # - weapon
-    #     all actors have a weapon. by default it is weapon.plastic_sword,
-    #     which inflicts no damage.
     # - spell
-    #     all actors have a spell. by default it is spell.TODO
     # - fist_damage
     
     @property
@@ -39,14 +36,28 @@ class Actor:
         self.health = max(0, self.health - damage_points)
         if not self.is_alive:
             self.map.cleanup_at(self.pos)
-        
+
+    def equip(self, weapon):
+        self.weapon = weapon
+
+    def learn(self, spell):
+        self.spell = spell
+            
     def do_turn(self):
         # called when it is the actor's turn
         raise NotImplementedError
 
-    def accept_treasure(self, treasure):
-        # each actor can decide if he will accept the @treasure.
-        raise NotImplementedError
+    def accept_treasure(self, the_treasure):
+        if type(the_treasure) is treasure.Weapon:
+            self.equip(the_treasure)
+        elif type(the_treasure) is treasure.Spell:
+            self.learn(the_treasure)
+        elif type(the_treasure) is treasure.HealthPotion:
+            self.take_healing(the_treasure.amount)
+        elif type(the_treasure) is treasure.ManaPotion:
+            self.take_mana(the_treasure.amount)
+        else:
+            raise TypeError(f'invalid treasure type: {type(the_treasure)}')
     
     def move(self, direction):
         # @direction must be one of {'up', 'down', 'left', 'right'}
@@ -82,17 +93,26 @@ class Actor:
                 raise ValueError('not enough mana')
         else:
             nemesis.take_damage(self.fist_damage)
-                
-            
+                            
 class Hero(Actor):
     # a Hero has the following additional attributes:
     # - name
     # - title
-    # important invariant: a Hero's fist_damage will always be 0
 
-    @classmethod
-    def from_dict(cls, d):
-        raise NotImplementedError
+    @staticmethod
+    def from_dict(dct):
+        # the dict must have the keys
+        # {'name', 'title', 'health', 'mana', 'fist_damage', 'map', 'pos'}
+        result = object.__new__(Enemy)
+        self.name = dct['name']
+        self.title = dct['title']
+        self.health = self.max_health = dct['health']
+        self.mana = self.max_mana = dct['mana']
+        self.fist_damage = dct['fist_damage']
+        self.pos = dct['pos']
+        self.map = dct['map']
+        self.weapon = treasures.Weapon()
+        self.spell = treasures.Spell()
     
     @property
     def known_as(self):
@@ -102,20 +122,31 @@ class Hero(Actor):
         # returns one of:
         # {'up', 'down', 'left', 'right',
         #  ('weapon', 'up'), ..., ('weapon', 'right'),
+        #  ('fist', 'up'), ..., ('fist', 'right'),
         #  ('spell', 'up', ...', ('spell', 'right')}
+        # TODO: handle user chars better
         # THIS FUNCTION DETERMINES THE USER CONTROL KEYS
-        raise NotImplementedError
         
-        
+        first_char = utils.get_char()
+        if first_char in '2468':
+            return {'2': 'down', '4': 'left', '6': 'right', '8': 'up'}[first_char]
+        elif first_char in 'wsf':
+            by = {'w': 'weapon', 's': 'spell', 'f': fist}[first_char]
+            second_char = utils.get_char()
+            if second_char not in '2468':
+                raise ValueError(f'invalid second character: "{second_char}". expected one of "2468"')
+            direction = {'2': 'down', '4': 'left', '6': 'right', '8': 'up'}[second_char]
+            return by, direction
+        else:
+            raise ValueError(f'invalid first char: "{first_char}". expected one of "2468wsf"')
+                
     def do_turn(self):
         command = self.read_command()
         if type(command) is str:
             # command is one of {'up', 'down', 'left', 'right'}
             self.move(command)
         else:
-            # command is one of:
-            # {('weapon', 'up'), ..., ('weapon', 'right'),
-            #  ('spell', 'up', ...', ('spell', 'right')}}
+            # command has the form (<kind of attack>, <direction>)
             self.attack(*command)
             
 class Enemy(Actor):
@@ -126,10 +157,19 @@ class Enemy(Actor):
     #  if the enemy does not know where the hero is, self.last_seen and
     #  self.hero_direction will both be None.
 
-    @classmethod
-    def from_dict(cls, d):
-        p
-    
+    @staticmethod
+    def from_dict(dct):
+        # @dct must have the keys
+        # {'health', 'mana', 'fist_damage', 'pos', 'map'}
+        result = object.__new__(Enemy)
+        self.health = self.max_health = dct['health']
+        self.mana = self.max_mana = dct['mana']
+        self.fist_damage = dct['fist_damage']
+        self.pos = dct['pos']
+        self.map = dct['map']
+        self.weapon = treasures.Weapon()
+        self.spell = treasures.Spell()
+        
     def search_for_hero(self):
         # returns the position of the hero, or None if he can't be seen
         # @self will only look up, down, left and right
@@ -167,8 +207,7 @@ class Enemy(Actor):
         def attack_hero():
             # Call only when the hero is next to @self!
             # The enemy determines the attack type dealing the most
-            # damage and inflicts it on the hero.
-            
+            # damage and inflicts it on the hero.            
             self.attack('fist', self.hero_direction)
         
         hero_pos = self.search_for_hero()
