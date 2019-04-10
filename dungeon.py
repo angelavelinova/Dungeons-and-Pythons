@@ -1,3 +1,4 @@
+from treasure_chest import TreasureChest
 # ========================================
 # constants
 
@@ -9,59 +10,119 @@ OBSTACLE = '#'
 ENEMY = 'E'
 HERO = 'H'
 
+
+'''
+H.##.....T
+#T##..###.
+#.###E###E
+#.E...###.
+###T#####G
+
+"map":[
+         "S.##..S..T",
+         "#T##S.###.",
+         "#.###E###E",
+         "#.E...###.",
+         "###T#####G"
+      ]
+
+pos = tuple
+self[row][col]
+'''
+
 # ========================================
 
 class Map:
+    def __init__(self, matrix, gateway_pos):
+        self.matrix = matrix
+        self.gateway_pos = gateway_pos
+
     @property
     def nrows(self):
-        # returns the number of rows in @self
-        raise NotImplementedError
+        return len(self.matrix)
 
     @property
     def ncols(self):
-        # returns the number of columns in @self
-        raise NotImplementedError
+        return len(self.matrix[0])
 
     def cleanup_at(self, pos):
-        # responsible for removing dead bodies and looted treasures
-        raise NotImplementedError
+        self[pos] = "."
 
     def contains_treasure_at(self, pos):
         # returns True iff self[pos] is a treasure
-        raise NotImplementedError
+        return isistance(self[pos], TreasureChest)
     
     def can_move_to(self, pos):
         # returns True if pos is within @self and if there is nothing
         # at that position that prevents you from moving there.
-        raise NotImplementedError
-    
-    @property
-    def gateway_pos(self):
-        # returns the coordinates (<row-index>, <col-index>) of the gateway
-        raise NotImplementedError
+        row, col = pos
+        if row >= 0 and row <= self.nrows and col >= 0 and col <= self.cols:
+            if isinstance(self[pos], TreasureChest) or self[pos] == "." or self[pos] == "G":
+                return True
+        return False
 
     def display(self):
-        raise NotImplementedError
+        for row in range(self.nrows):
+            lst = []
+            for col in range(self.ncols):
+                if  isinstance(self[row,col], TreasureChest):
+                    lst.append('T')
+                elif isinstance(self[row,col], Hero):
+                    lst.append('H')
+                elif isinstance(self[row,col], Enemy):
+                    lst.append('E')
+                else:
+                    lst.append(self[row,col])
+            ''.join(lst)
+            print(lst)
 
     def remove_actor(self, actor_pos):
         # @actor_pos must be a valid position within @self
         # removes the actor at the position @actor_pos.
         # if @actor_pos does not point to an actor, a ValueError is raised
-        pass
+        if isinstance(self[actor_pos], Hero):
+            self[actor_pos] = '.'
+        else: 
+            raise ValueError
 
     def __getitem__(self, pos):
         # pos must be a pair (<row-index>, <column-index>)
-        raise NotImplementedError
+        row, col = pos
+        return self.matrix[row][col]
 
     def __setitem__(self, pos, value):
         # pos must be a pair (<row-index>, <column-index>)
-        # 
-        raise NotImplementedError
+        row, col = pos
+        self.matrix[row][col] = value
     
     def positions(self, pos, direction):
-        # direction must be one in {'up', 'down', 'left', 'right'}.
-        # returns an iterator of positions relative to @pos.
-        raise NotImplementedError
+        row, col = pos
+        res = []
+        if direction == 'up':
+            row -= 1
+            while row >= 0:
+                res.append((row,col))
+                row -= 1
+
+        elif direction == 'down':
+            row += 1
+            while row < self.nrows:
+                res.append((row,col))
+                row += 1
+
+        elif direction == 'left':
+            col -= 1
+            while col >= 0:
+                res.append((row,col))
+                col -= 1
+
+        elif direction == 'right':
+            col += 1
+            while col < self.ncols:
+                res.append((row,col))
+                col += 1
+
+        return res
 
     def neighbours(self, pos):
         # returns an iterator of the positions around @pos,
