@@ -1,3 +1,4 @@
+import sys
 import utils
 import treasures
 
@@ -22,17 +23,20 @@ class Actor:
     def can_cast(self):
         return self.mana != 0
     
-    def take_healing(self, healing_points):
+    def give_healing(self, healing_points):
         if not self.is_alive:
             raise ValueError('cannot heal a dead actor')
         else:
             self.health = min(self.max_health, self.health + healing_points)
             return True
         
-    def take_mana(self, mana_points):
+    def give_mana(self, mana_points):
         self.mana = min(self.max_mana, self.mana + mana_points)
 
-    def take_damage(self, damage_points):
+    def take_mana(self, mana_points):
+        self.mana = max(0, self.mana - mana_points)
+        
+    def damage(self, damage_points):
         self.health = max(0, self.health - damage_points)
         if not self.is_alive:
             self.map.cleanup_at(self.pos)
@@ -53,9 +57,9 @@ class Actor:
         elif type(the_treasure) is treasures.Spell:
             self.learn(the_treasure)
         elif type(the_treasure) is treasures.HealthPotion:
-            self.take_healing(the_treasure.amount)
+            self.give_healing(the_treasure.amount)
         elif type(the_treasure) is treasures.ManaPotion:
-            self.take_mana(the_treasure.amount)
+            self.give_mana(the_treasure.amount)
         else:
             raise TypeError(f'invalid treasure type: {type(the_treasure)}')
     
@@ -80,7 +84,7 @@ class Actor:
     def attack(self, by, direction):
         # @by must be in {'weapon', 'spell', 'fist'}
         # @direction must be in {'up', 'down', 'left', 'right'}
-        
+
         nemesis_pos = utils.move_pos(self.pos, direction)
 
         if not self.map.pos_is_valid(nemesis_pos):
@@ -90,15 +94,19 @@ class Actor:
 
         if not isinstance(nemesis, Actor):
             return
-
+        
         if by == 'weapon':
-            nemesis.take_damage(self.weapon.damage)
+            nemesis.damage(self.weapon.damage)
         elif by == 'spell':
+            wrt('in spell')
             if self.mana >= self.spell.mana_cost:
-                nemesis.take_damage(self.spell.damage)
-            self.mana -= self.spell.mana_cost
+                nemesis.damage(self.spell.damage)
+                self.take_mana(self.spell.mana_cost)
+                wrt(f'taking {self.spell.mana_cost} mana')
+            else:
+                wrt('in else')
         elif by == 'fist':
-            nemesis.take_damage(self.fist_damage)
+            nemesis.damage(self.fist_damage)
         else:
             # this should not execute, but keep it to ease debugging
             raise ValueError(f'invalid "by" argument: {by}')
