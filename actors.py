@@ -71,14 +71,15 @@ class Actor:
         new_pos = utils.move_pos(self.pos, direction)
         
         if not self.map.can_move_to(new_pos):
-            return False
+            return
 
         if self.map.contains_treasure_at(new_pos):
             self.accept_treasure(self.map[new_pos].open())
 
         # at this point self.map[pos] contains a walkable.
         # swap the walkable with self
-        self.map[self.pos], self.map[new_pos] = self.map[new_pos], self.map[self.pos]
+        self.map[self.pos] = '.'
+        self.map[new_pos] = self
         self.pos = new_pos
 
     def attack(self, by, direction):

@@ -3,6 +3,7 @@ import copy
 import treasures
 import actors
 import os
+import itertools
 
 class Map:
     def __init__(self, matrix):
@@ -135,11 +136,15 @@ class Game:
         self.map = map
     
     def play(self):
-        while True:
+        def display():
             os.system('clear')
             self.hero.display()
             self.map.display()
+        
+        while True:
+            display()
             self.hero.do_turn()
+            display()
             if self.hero.pos == self.map.gateway_pos:
                 return Game.WON
             # after the hero's turn, some enemies may be dead, so stop tracking them
@@ -153,7 +158,7 @@ class Game:
 class Dungeon:
     # attributes:
     #  - hero_partial_dict
-    #  - enemy_partial_dicts
+    #  - enemies_data: used to create the enemy_partial_dicts iterator
     #  - map_template
     #  - treasures
     
@@ -167,7 +172,7 @@ class Dungeon:
     def from_dict(dct):
         result = Dungeon.__new__(Dungeon)
         result.hero_partial_dict = dct['hero']
-        result.enemy_partial_dicts = dct['enemies']
+        result.enemy_data = dct['enemies']
         result.map_template = dct['map_template']
         result.treasures = [treasures.parse_dict(tdict) for tdict in dct['treasures']]
         return result
@@ -184,12 +189,20 @@ class Dungeon:
         
     def games(self):
         return (self.create_game(spawn_pos) for spawn_pos in self.spawn_posns)
-            
+
+    @property
+    def enemy_partial_dicts(self):        
+        if type(self.enemy_data) is list:
+            return iter(self.enemy_data)
+        return itertools.repeat(self.enemy_data['all'])
+    
+    
     def create_game(self, spawn_pos):
         # @spawn_location must be one of @self's spawn locations.
         # Returns the Game instance with the hero at @spawn_location.
         
-        enemy_partial_dicts = iter(self.enemy_partial_dicts)
+
+        enemy_partial_dicts = self.enemy_partial_dicts
         hero = None
         enemies = []
         the_map = Map([list(row) for row in self.map_template])
