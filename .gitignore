@@ -1,7 +1,7 @@
 *~
 \#*\#
-main.py
 dungeon-syntax
 treasure_chest.py
 wishlist
-
+__pycache__/
+sample-dungeon

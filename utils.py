@@ -40,4 +40,4 @@ def relative_direction(pos1, pos2):
 def move_pos(pos, direction):
     # direction should be in {'up', 'down', 'left', 'right'}
     dx_dy = {'up': (-1, 0), 'down': (1, 0), 'left': (0, -1), 'right': (0, 1)}[direction]
-    return = (self.pos[0] + dx_dy[0], self.pos[1] + dx_dy[1])
+    return (pos[0] + dx_dy[0], pos[1] + dx_dy[1])

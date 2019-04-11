@@ -1,3 +1,5 @@
+import random
+
 class TreasureChest:
     def __init__(self, pos, map, treasures):
         self.pos = pos
@@ -41,6 +43,6 @@ def parse_dict(dct):
     elif treasure_type == 'health_potion':
         return HealthPotion(dct['amount'])
     elif treasure_type == 'mana_potion':
-        return ManaPotion(dct['amount]'])
+        return ManaPotion(dct['amount'])
     else:
         raise ValueError(f'invalid treasure type: {treasure_type}')

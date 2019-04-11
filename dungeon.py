@@ -1,8 +1,8 @@
 import json
 import copy
-import treasure
-from weapon import Weapon
-from spell import Spell
+import treasures
+import actors
+import os
 
 class Map:
     def __init__(self, matrix):
@@ -21,14 +21,18 @@ class Map:
         
     def contains_treasure_at(self, pos):
         # returns True iff self[pos] is a treasure
-        return isinstance(self[pos], treasure.TreasureChest)
-    
+        return isinstance(self[pos], treasures.TreasureChest)
+
+    def pos_is_valid(self, pos):
+        row, col = pos
+        return row >= 0 and row < self.nrows and col >= 0 and col < self.ncols
+        
     def can_move_to(self, pos):
         # returns True if pos is within @self and if there is nothing
         # at that position that prevents you from moving there.
-        row, col = pos
-        if row >= 0 and row <= self.nrows and col >= 0 and col <= self.cols:
-            if isinstance(self[pos], treasure.TreasureChest) or self[pos] == "." or self[pos] == "G":
+        
+        if self.pos_is_valid(pos):
+            if isinstance(self[pos], treasures.TreasureChest) or self[pos] == "." or self[pos] == "G":
                 return True
         return False
 
@@ -36,21 +40,22 @@ class Map:
         for row in range(self.nrows):
             lst = []
             for col in range(self.ncols):
-                if  isinstance(self[row,col], treasure.TreasureChest):
+                if isinstance(self[row,col], treasures.TreasureChest):
                     lst.append('T')
-                elif isinstance(self[row,col], Hero):
+                elif isinstance(self[row,col], actors.Hero):
                     lst.append('H')
-                elif isinstance(self[row,col], Enemy):
+                elif isinstance(self[row,col], actors.Enemy):
                     lst.append('E')
                 else:
                     lst.append(self[row,col])
             print(''.join(lst))
+        print()
 
     def remove_actor(self, actor_pos):
         # @actor_pos must be a valid position within @self
         # removes the actor at the position @actor_pos.
         # if @actor_pos does not point to an actor, a ValueError is raised
-        if isinstance(self[actor_pos], Hero):
+        if isinstance(self[actor_pos], actors.Hero):
             self[actor_pos] = '.'
         else: 
             raise ValueError
@@ -131,16 +136,18 @@ class Game:
     
     def play(self):
         while True:
+            os.system('clear')
+            self.hero.display()
             self.map.display()
             self.hero.do_turn()
-            if hero.pos == self.map.gateway_pos:
+            if self.hero.pos == self.map.gateway_pos:
                 return Game.WON
             # after the hero's turn, some enemies may be dead, so stop tracking them
             self.enemies = [enemy for enemy in self.enemies if enemy.is_alive]
             for enemy in self.enemies:
                 enemy.do_turn()
             # after the enemies' turn, the hero may have died
-            if not hero.is_alive:
+            if not self.hero.is_alive:
                 return Game.KILLED
 
 class Dungeon:
@@ -160,7 +167,8 @@ class Dungeon:
     def from_dict(dct):
         result = Dungeon.__new__(Dungeon)
         result.hero_partial_dict = dct['hero']
-        result.enemies_partial_dicts = dct['enemies']
+        result.enemy_partial_dicts = dct['enemies']
+        result.map_template = dct['map_template']
         result.treasures = [treasures.parse_dict(tdict) for tdict in dct['treasures']]
         return result
 
@@ -185,28 +193,28 @@ class Dungeon:
         hero = None
         enemies = []
         the_map = Map([list(row) for row in self.map_template])
-        for pos in self.posns_lrtb:
+        for pos in the_map.posns_lrtb:
             char = the_map[pos]
             if char == 'S':
                 if pos == spawn_pos:
                     hero_dict = copy.deepcopy(self.hero_partial_dict)
                     hero_dict['map'] = the_map
                     hero_dict['pos'] = pos
-                    hero = Hero.from_dict(hero_dict)
+                    hero = actors.Hero.from_dict(hero_dict)
                     the_map[pos] = hero
                 else:
                     the_map[pos] = '.'
             elif char == 'T':
-                chest = treasure.TreasureChest(pos, the_map, self.treasures)
+                chest = treasures.TreasureChest(pos, the_map, self.treasures)
                 the_map[pos] = chest
             elif char == 'E':
                 enemy_dict = next(enemy_partial_dicts)
                 enemy_dict['pos'] = pos
                 enemy_dict['map'] = the_map
-                enemy = Enemy.from_dict(enemy_dict)
+                enemy = actors.Enemy.from_dict(enemy_dict)
                 enemies.append(enemy)
                 the_map[pos] = enemy
             elif char == 'G':
-                the_map.gateway_pos = pos                 
+                the_map.gateway_pos = pos
                         
         return Game(hero, enemies, the_map)

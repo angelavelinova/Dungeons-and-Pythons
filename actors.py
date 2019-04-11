@@ -48,13 +48,13 @@ class Actor:
         raise NotImplementedError
 
     def accept_treasure(self, the_treasure):
-        if type(the_treasure) is treasure.Weapon:
+        if type(the_treasure) is treasures.Weapon:
             self.equip(the_treasure)
-        elif type(the_treasure) is treasure.Spell:
+        elif type(the_treasure) is treasures.Spell:
             self.learn(the_treasure)
-        elif type(the_treasure) is treasure.HealthPotion:
+        elif type(the_treasure) is treasures.HealthPotion:
             self.take_healing(the_treasure.amount)
-        elif type(the_treasure) is treasure.ManaPotion:
+        elif type(the_treasure) is treasures.ManaPotion:
             self.take_mana(the_treasure.amount)
         else:
             raise TypeError(f'invalid treasure type: {type(the_treasure)}')
@@ -80,19 +80,28 @@ class Actor:
     def attack(self, by, direction):
         # @by must be in {'weapon', 'spell', 'fist'}
         # @direction must be in {'up', 'down', 'left', 'right'}
+        
+        nemesis_pos = utils.move_pos(self.pos, direction)
 
-        nemesis_pos = utils.move_position(self.pos, direction)
+        if not self.map.pos_is_valid(nemesis_pos):
+            return
+        
         nemesis = self.map[nemesis_pos]
+
+        if not isinstance(nemesis, Actor):
+            return
 
         if by == 'weapon':
             nemesis.take_damage(self.weapon.damage)
         elif by == 'spell':
             if self.mana >= self.spell.mana_cost:
                 nemesis.take_damage(self.spell.damage)
-            else:
-                raise ValueError('not enough mana')
-        else:
+            self.mana -= self.spell.mana_cost
+        elif by == 'fist':
             nemesis.take_damage(self.fist_damage)
+        else:
+            # this should not execute, but keep it to ease debugging
+            raise ValueError(f'invalid "by" argument: {by}')
                             
 class Hero(Actor):
     # a Hero has the following additional attributes:
@@ -103,21 +112,29 @@ class Hero(Actor):
     def from_dict(dct):
         # the dict must have the keys
         # {'name', 'title', 'health', 'mana', 'fist_damage', 'map', 'pos'}
-        result = object.__new__(Enemy)
-        self.name = dct['name']
-        self.title = dct['title']
-        self.health = self.max_health = dct['health']
-        self.mana = self.max_mana = dct['mana']
-        self.fist_damage = dct['fist_damage']
-        self.pos = dct['pos']
-        self.map = dct['map']
-        self.weapon = treasures.Weapon()
-        self.spell = treasures.Spell()
+        result = object.__new__(Hero)
+        result.name = dct['name']
+        result.title = dct['title']
+        result.health = result.max_health = dct['health']
+        result.mana = result.max_mana = dct['mana']
+        result.fist_damage = dct['fist_damage']
+        result.pos = dct['pos']
+        result.map = dct['map']
+        result.weapon = treasures.Weapon()
+        result.spell = treasures.Spell()
+        return result
     
     @property
     def known_as(self):
         return f"{self.name} the {self.title}"
 
+    def display(self):
+        print(f'health: {self.health}')
+        print(f'mana: {self.mana}')
+        print(f'weapon: {self.weapon.name}')
+        print(f'spell: {self.spell.name}')
+        print()
+    
     def read_command(self):
         # returns one of:
         # {'up', 'down', 'left', 'right',
@@ -126,19 +143,18 @@ class Hero(Actor):
         #  ('spell', 'up', ...', ('spell', 'right')}
         # TODO: handle user chars better
         # THIS FUNCTION DETERMINES THE USER CONTROL KEYS
-        
-        first_char = utils.get_char()
-        if first_char in '2468':
-            return {'2': 'down', '4': 'left', '6': 'right', '8': 'up'}[first_char]
-        elif first_char in 'wsf':
-            by = {'w': 'weapon', 's': 'spell', 'f': fist}[first_char]
-            second_char = utils.get_char()
-            if second_char not in '2468':
-                raise ValueError(f'invalid second character: "{second_char}". expected one of "2468"')
-            direction = {'2': 'down', '4': 'left', '6': 'right', '8': 'up'}[second_char]
-            return by, direction
-        else:
-            raise ValueError(f'invalid first char: "{first_char}". expected one of "2468wsf"')
+
+        while True:
+            first_char = utils.get_char()
+            if first_char in '2468':
+                return {'2': 'down', '4': 'left', '6': 'right', '8': 'up'}[first_char]
+            elif first_char in 'wsf':
+                by = {'w': 'weapon', 's': 'spell', 'f': 'fist'}[first_char]
+                second_char = utils.get_char()
+                if second_char not in '2468':
+                    continue
+                direction = {'2': 'down', '4': 'left', '6': 'right', '8': 'up'}[second_char]
+                return by, direction
                 
     def do_turn(self):
         command = self.read_command()
@@ -162,29 +178,40 @@ class Enemy(Actor):
         # @dct must have the keys
         # {'health', 'mana', 'fist_damage', 'pos', 'map'}
         result = object.__new__(Enemy)
-        self.health = self.max_health = dct['health']
-        self.mana = self.max_mana = dct['mana']
-        self.fist_damage = dct['fist_damage']
-        self.pos = dct['pos']
-        self.map = dct['map']
-        self.weapon = treasures.Weapon()
-        self.spell = treasures.Spell()
+        result.health = result.max_health = dct['health']
+        result.mana = result.max_mana = dct['mana']
+        result.fist_damage = dct['fist_damage']
+        result.pos = dct['pos']
+        result.map = dct['map']
+        result.weapon = treasures.Weapon()
+        result.spell = treasures.Spell()
+        result.last_seen = result.hero_direction = None
+        return result
         
     def search_for_hero(self):
         # returns the position of the hero, or None if he can't be seen
         # @self will only look up, down, left and right
 
-        def try_positions(positions):
-            # returns the position which contains Hero
-            # or None if there is no such position in @positions
-            return next((pos for pos in positions if type(self.map[pos]) is Hero), None)
+        def try_direction(direction):
+            # looks for the hero in the direction @direction
+            # returns None if @self can't see him in that direction
+            
+            for pos in self.map.positions(self.pos, direction):
+                entity = self.map[pos]
+                if type(entity) is Hero:
+                    return pos
+                elif entity != '.':
+                    # something blocks @self's view
+                    return None
+            return None
 
-        return next((pos in map(try_positions,
-                                (self.map.positions(self.pos, direction)
-                                 for direction in ('up', 'down', 'left', 'right')))
-                     if pos is not None),
-                    None) # next default return value
-
+        for direction in ('up', 'down', 'left', 'right'):
+            pos = try_direction(direction)
+            if pos is not None:
+                return pos, direction
+            
+        return None, None
+        
     def move_to_last_seen(self):
         if self.last_seen is None:
             return
@@ -197,7 +224,7 @@ class Enemy(Actor):
         self.move(self.hero_direction)
     
     def do_turn(self):
-        def hero_in_vicinity():
+        def hero_is_in_vicinity():
             # Returns True if hero is directly above, below, to the right
             # or to the left of @self.
             pos_row, pos_col = self.pos
@@ -207,17 +234,17 @@ class Enemy(Actor):
         def attack_hero():
             # Call only when the hero is next to @self!
             # The enemy determines the attack type dealing the most
-            # damage and inflicts it on the hero.            
+            # damage and inflicts it on the hero.
             self.attack('fist', self.hero_direction)
         
-        hero_pos = self.search_for_hero()
+        hero_pos, hero_direction = self.search_for_hero()
         if hero_pos is None:
             # the enemy cannot see the hero
             self.move_to_last_seen()
         else:
-            if hero_in_vicinity():
+            self.last_seen = hero_pos
+            self.hero_direction = hero_direction
+            if hero_is_in_vicinity():
                 attack_hero()
             else:
-                self.last_seen = hero_pos
-                self.hero_direction = utils.relative_direction(self.pos, hero_pos)
                 self.move_to_last_seen()
