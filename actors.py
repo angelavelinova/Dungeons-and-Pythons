@@ -98,13 +98,9 @@ class Actor:
         if by == 'weapon':
             nemesis.damage(self.weapon.damage)
         elif by == 'spell':
-            wrt('in spell')
             if self.mana >= self.spell.mana_cost:
                 nemesis.damage(self.spell.damage)
                 self.take_mana(self.spell.mana_cost)
-                wrt(f'taking {self.spell.mana_cost} mana')
-            else:
-                wrt('in else')
         elif by == 'fist':
             nemesis.damage(self.fist_damage)
         else:
