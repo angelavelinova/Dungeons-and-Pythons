@@ -96,6 +96,7 @@ class Map:
 class Game:
     WON = object()
     KILLED = object()
+    QUIT = object()
 
     def __init__(self, hero, enemies, map):
         # @hero should be a Hero instance whose map is @map
@@ -105,7 +106,14 @@ class Game:
         self.hero = hero
         self.enemies = enemies
         self.map = map
-    
+
+        # needed for restarting the game
+        self.initial_state = copy.deepcopy(self.__dict__)
+
+    def reset_state(self):
+        cpy = copy.deepcopy(self.initial_state)
+        self.__dict__.update(cpy)
+        
     def play(self):
         def display():
             os.system('clear')
@@ -114,14 +122,31 @@ class Game:
         
         while True:
             display()
-            self.hero.do_turn()
+            
+            try:
+                self.hero.do_turn()
+            except KeyboardInterrupt:
+                command = input('>>> ')
+                if command == 'q':
+                    return Game.QUIT
+                elif command == 'r':
+                    self.reset_state()
+                    continue
+                else:
+                    # unknown command
+                    continue
+
             display()
+                
             if self.hero.pos == self.map.gateway_pos:
                 return Game.WON
+            
             # after the hero's turn, some enemies may be dead, so stop tracking them
             self.enemies = [enemy for enemy in self.enemies if enemy.is_alive]
+            
             for enemy in self.enemies:
                 enemy.do_turn()
+                
             # after the enemies' turn, the hero may have died
             if not self.hero.is_alive:
                 return Game.KILLED
@@ -166,7 +191,6 @@ class Dungeon:
         if type(self.enemy_data) is list:
             return iter(self.enemy_data)
         return itertools.repeat(self.enemy_data['all'])
-    
     
     def create_game(self, spawn_pos):
         # @spawn_location must be one of @self's spawn locations.
