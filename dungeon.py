@@ -4,6 +4,7 @@ import treasures
 import actors
 import os
 import itertools
+import utils
 
 class Map:
     def __init__(self, matrix):
@@ -52,15 +53,6 @@ class Map:
             print(''.join(lst))
         print()
 
-    def remove_actor(self, actor_pos):
-        # @actor_pos must be a valid position within @self
-        # removes the actor at the position @actor_pos.
-        # if @actor_pos does not point to an actor, a ValueError is raised
-        if isinstance(self[actor_pos], actors.Hero):
-            self[actor_pos] = '.'
-        else: 
-            raise ValueError
-
     def __getitem__(self, pos):
         # pos must be a pair (<row-index>, <column-index>)
         row, col = pos
@@ -72,33 +64,12 @@ class Map:
         self.matrix[row][col] = value
     
     def positions(self, pos, direction):
-        row, col = pos
-        res = []
-        if direction == 'up':
-            row -= 1
-            while row >= 0:
-                res.append((row,col))
-                row -= 1
-
-        elif direction == 'down':
-            row += 1
-            while row < self.nrows:
-                res.append((row,col))
-                row += 1
-
-        elif direction == 'left':
-            col -= 1
-            while col >= 0:
-                res.append((row,col))
-                col -= 1
-
-        elif direction == 'right':
-            col += 1
-            while col < self.ncols:
-                res.append((row,col))
-                col += 1
-
-        return res
+        while True:
+            pos = utils.move_pos(pos, direction)
+            if self.pos_is_valid(pos):
+                yield pos
+            else:
+                break
 
     @property
     def posns_lrtb(self):

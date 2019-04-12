@@ -1,6 +1,7 @@
 import sys
 import utils
 import treasures
+import itertools
 
 class Actor:
     # base class for Enemy and Hero
@@ -23,7 +24,7 @@ class Actor:
     def can_cast(self):
         return self.mana != 0
     
-    def give_healing(self, healing_points):
+    def heal(self, healing_points):
         if not self.is_alive:
             raise ValueError('cannot heal a dead actor')
         else:
@@ -51,18 +52,6 @@ class Actor:
         # called when it is the actor's turn
         raise NotImplementedError
 
-    def accept_treasure(self, the_treasure):
-        if type(the_treasure) is treasures.Weapon:
-            self.equip(the_treasure)
-        elif type(the_treasure) is treasures.Spell:
-            self.learn(the_treasure)
-        elif type(the_treasure) is treasures.HealthPotion:
-            self.give_healing(the_treasure.amount)
-        elif type(the_treasure) is treasures.ManaPotion:
-            self.give_mana(the_treasure.amount)
-        else:
-            raise TypeError(f'invalid treasure type: {type(the_treasure)}')
-    
     def move(self, direction):
         # @direction must be one of {'up', 'down', 'left', 'right'}
         # if it is possible to move the actor in @direction, moves him and returns True;
@@ -74,7 +63,7 @@ class Actor:
             return
 
         if self.map.contains_treasure_at(new_pos):
-            self.accept_treasure(self.map[new_pos].open())
+            self.map[new_pos].open().give_to_actor(self)
 
         # at this point self.map[pos] contains a walkable.
         # swap the walkable with self
@@ -86,27 +75,35 @@ class Actor:
         # @by must be in {'weapon', 'spell', 'fist'}
         # @direction must be in {'up', 'down', 'left', 'right'}
 
-        nemesis_pos = utils.move_pos(self.pos, direction)
+        if by == 'spell':
+            spell = self.spell
+            
+            if self.mana < spell.mana_cost:
+                return
 
-        if not self.map.pos_is_valid(nemesis_pos):
-            return
-        
-        nemesis = self.map[nemesis_pos]
-
-        if not isinstance(nemesis, Actor):
-            return
-        
-        if by == 'weapon':
-            nemesis.damage(self.weapon.damage)
-        elif by == 'spell':
-            if self.mana >= self.spell.mana_cost:
-                nemesis.damage(self.spell.damage)
-                self.take_mana(self.spell.mana_cost)
-        elif by == 'fist':
-            nemesis.damage(self.fist_damage)
+            self.take_mana(spell.mana_cost)
+            
+            for pos in itertools.islice(self.map.positions(self.pos, direction), spell.cast_range):
+                entity = self.map[pos]
+                if isinstance(entity, Actor):
+                    entity.damage(spell.damage)
+                    break
+                elif entity != '.':
+                    break
         else:
-            # this should not execute, but keep it to ease debugging
-            raise ValueError(f'invalid "by" argument: {by}')
+            # by is in {'weapon', 'fist'}
+            nemesis_pos = next(self.map.positions(self.pos, direction), None)
+            
+            if nemesis_pos is None:
+                return
+            
+            nemesis = self.map[nemesis_pos]
+            
+            if not isinstance(nemesis, Actor):
+                return
+
+            damage = self.weapon.damage if by == 'weapon' else self.fist_damage
+            nemesis.damage(damage)
                             
 class Hero(Actor):
     # a Hero has the following additional attributes:
