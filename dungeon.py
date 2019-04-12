@@ -7,11 +7,11 @@ import itertools
 import utils
 
 class Map:
-    WALKABLE = ' '
-    ENEMY = '+'
-    GATEWAY = 'O'
+    WALKABLE = '.'
+    ENEMY = 'E'
+    GATEWAY = 'G'
     TREASURE_CHEST = 'T'
-    HERO = 'X'
+    HERO = 'H'
     OBSTACLE = '#'
     NORTH_BORDER = '#'
     SOUTH_BORDER = '#'
