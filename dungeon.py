@@ -13,10 +13,10 @@ class Map:
     TREASURE_CHEST = 'T'
     HERO = 'X'
     OBSTACLE = '#'
-    NORTH_BORDER = '.'
-    SOUTH_BORDER = '.'
-    WEST_BORDER = '.'
-    EAST_BORDER = '.'
+    NORTH_BORDER = '#'
+    SOUTH_BORDER = '#'
+    WEST_BORDER = '#'
+    EAST_BORDER = '#'
     
     def __init__(self, matrix):
         self.matrix = matrix

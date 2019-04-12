@@ -1,5 +1,9 @@
 import sys
 import dungeon
+import utils
+
+class GameOver(Exception):
+    pass
 
 def parse_dungeons():
     # returns a list of Dungeon instances, which are parsed from the
@@ -7,26 +11,39 @@ def parse_dungeons():
     return [dungeon.Dungeon.from_file(path) for path in sys.argv[1:]]
 
 
-for current_dungeon in parse_dungeons():
-    games = list(current_dungeon.games())
-    for i, game in enumerate(games):
-        # if the player wins a game from games, the loop will terminate.
-        # if he loses all games, the program will terminate and no code
-        # after the loop will be executed.
+dungeons = parse_dungeons()
 
-        status = game.play()
-        if status is game.KILLED:
-            if i == len(games) - 1: # if game is the last one
-                print('you lose')
-                exit()
+def start_game():
+    for current_dungeon in dungeons:
+        games = list(current_dungeon.games())
+        for i, game in enumerate(games):
+            # if the player wins a game from games, the loop will terminate.
+            # if he loses all games, the program will terminate and no code
+            # after the loop will be executed.
+
+            status = game.play()
+            if status is game.KILLED:
+                if i == len(games) - 1: # if game is the last one
+                    raise GameOver('you lose')
+                else:
+                    # start the next game
+                    continue
+            elif status is game.WON:
+                # start the next dungeon
+                raise GameOver('you win')
+            elif status is game.QUIT:
+                raise GameOver('quit')
             else:
-                # start the next game
-                continue
-        elif status is game.WON:
-            # start the next dungeon
-            print('you win')
+                raise ValueError('invalid game status')
+while True:
+    try:
+        start_game()
+    except GameOver as go:
+        if str(go) == 'quit':
             break
-        elif status is game.QUIT:
-            exit()
-        else:
-            raise ValueError('invalid game status')
+
+        print(go)
+        print('press "y" to play again')
+        char = utils.get_char()
+        if char != "y":
+            break
