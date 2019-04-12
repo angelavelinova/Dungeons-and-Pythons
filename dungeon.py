@@ -7,6 +7,17 @@ import itertools
 import utils
 
 class Map:
+    WALKABLE = ' '
+    ENEMY = '+'
+    GATEWAY = 'O'
+    TREASURE_CHEST = 'T'
+    HERO = 'X'
+    OBSTACLE = '#'
+    NORTH_BORDER = '.'
+    SOUTH_BORDER = '.'
+    WEST_BORDER = '.'
+    EAST_BORDER = '.'
+    
     def __init__(self, matrix):
         self.matrix = matrix
                 
@@ -19,7 +30,7 @@ class Map:
         return len(self.matrix[0])
 
     def cleanup_at(self, pos):
-        self[pos] = "."
+        self[pos] = self.WALKABLE
         
     def contains_treasure_at(self, pos):
         # returns True iff self[pos] is a treasure
@@ -32,25 +43,27 @@ class Map:
     def can_move_to(self, pos):
         # returns True if pos is within @self and if there is nothing
         # at that position that prevents you from moving there.
-        
-        if self.pos_is_valid(pos):
-            if isinstance(self[pos], treasures.TreasureChest) or self[pos] == "." or self[pos] == "G":
-                return True
-        return False
+        return (self.pos_is_valid(pos)
+                and (isinstance(self[pos], treasures.TreasureChest)
+                     or self[pos] is self.WALKABLE
+                     or self[pos] is self.GATEWAY))
 
     def display(self):
+        print(' ' + self.NORTH_BORDER * self.ncols)
         for row in range(self.nrows):
-            lst = []
+            lst = [self.WEST_BORDER]
             for col in range(self.ncols):
                 if isinstance(self[row,col], treasures.TreasureChest):
-                    lst.append('T')
+                    lst.append(self.TREASURE_CHEST)
                 elif isinstance(self[row,col], actors.Hero):
-                    lst.append('H')
+                    lst.append(self.HERO)
                 elif isinstance(self[row,col], actors.Enemy):
-                    lst.append('E')
+                    lst.append(self.ENEMY)
                 else:
                     lst.append(self[row,col])
+            lst.append(self.EAST_BORDER)
             print(''.join(lst))
+        print(' ' + self.SOUTH_BORDER * self.ncols)
         print()
 
     def __getitem__(self, pos):
@@ -97,7 +110,7 @@ class Game:
     WON = object()
     KILLED = object()
     QUIT = object()
-
+    
     def __init__(self, hero, enemies, map):
         # @hero should be a Hero instance whose map is @map
         # @enemies should be a list of Enemy instances and each enemy's map should be @map
@@ -128,7 +141,7 @@ class Game:
             except KeyboardInterrupt:
                 command = input('>>> ')
                 if command == 'q':
-                    return Game.QUIT
+                    return self.QUIT
                 elif command == 'r':
                     self.reset_state()
                     continue
@@ -139,7 +152,7 @@ class Game:
             display()
                 
             if self.hero.pos == self.map.gateway_pos:
-                return Game.WON
+                return self.WON
             
             # after the hero's turn, some enemies may be dead, so stop tracking them
             self.enemies = [enemy for enemy in self.enemies if enemy.is_alive]
@@ -149,7 +162,7 @@ class Game:
                 
             # after the enemies' turn, the hero may have died
             if not self.hero.is_alive:
-                return Game.KILLED
+                return self.KILLED
 
 class Dungeon:
     # attributes:
@@ -194,9 +207,7 @@ class Dungeon:
     
     def create_game(self, spawn_pos):
         # @spawn_location must be one of @self's spawn locations.
-        # Returns the Game instance with the hero at @spawn_location.
-        
-
+        # Returns the Game instance with the hero at @spawn_location.        
         enemy_partial_dicts = self.enemy_partial_dicts
         hero = None
         enemies = []
@@ -211,7 +222,7 @@ class Dungeon:
                     hero = actors.Hero.from_dict(hero_dict)
                     the_map[pos] = hero
                 else:
-                    the_map[pos] = '.'
+                    the_map[pos] = Map.WALKABLE
             elif char == 'T':
                 chest = treasures.TreasureChest(pos, the_map, self.treasures)
                 the_map[pos] = chest
@@ -224,5 +235,11 @@ class Dungeon:
                 the_map[pos] = enemy
             elif char == 'G':
                 the_map.gateway_pos = pos
-                        
+                the_map[pos] = Map.GATEWAY
+            elif char == '#':
+                the_map[pos] = Map.OBSTACLE
+            elif char == '.':
+                the_map[pos] = Map.WALKABLE
+            else:
+                raise ValueError(f'invalid character in map template: "{char}"')
         return Game(hero, enemies, the_map)

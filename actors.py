@@ -67,7 +67,7 @@ class Actor:
 
         # at this point self.map[pos] contains a walkable.
         # swap the walkable with self
-        self.map[self.pos] = '.'
+        self.map[self.pos] = self.map.WALKABLE
         self.map[new_pos] = self
         self.pos = new_pos
 
@@ -88,7 +88,7 @@ class Actor:
                 if isinstance(entity, Actor):
                     entity.damage(spell.damage)
                     break
-                elif entity != '.':
+                elif entity != self.map.WALKABLE:
                     break
         else:
             # by is in {'weapon', 'fist'}
@@ -202,7 +202,7 @@ class Enemy(Actor):
                 entity = self.map[pos]
                 if type(entity) is Hero:
                     return pos
-                elif entity != '.':
+                elif entity != self.map.WALKABLE:
                     # something blocks @self's view
                     return None
             return None

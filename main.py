@@ -15,17 +15,18 @@ for current_dungeon in parse_dungeons():
         # after the loop will be executed.
 
         status = game.play()
-        if status is dungeon.Game.KILLED:
+        if status is game.KILLED:
             if i == len(games) - 1: # if game is the last one
                 print('you lose')
                 exit()
             else:
                 # start the next game
                 continue
-        elif status is dungeon.Game.WON:
+        elif status is game.WON:
             # start the next dungeon
+            print('you win')
             break
-        elif status is dungeon.Game.QUIT:
+        elif status is game.QUIT:
             exit()
         else:
             raise ValueError('invalid game status')
