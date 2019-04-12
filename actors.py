@@ -113,12 +113,14 @@ class Hero(Actor):
     @staticmethod
     def from_dict(dct):
         # the dict must have the keys
-        # {'name', 'title', 'health', 'mana', 'fist_damage', 'map', 'pos'}
+        # {'name', 'title', 'health', 'mana', 'mana_regeneration_rate',
+        #  'fist_damage', 'map', 'pos'}
         result = object.__new__(Hero)
         result.name = dct['name']
         result.title = dct['title']
         result.health = result.max_health = dct['health']
         result.mana = result.max_mana = dct['mana']
+        result.mana_regeneration_rate = dct['mana_regeneration_rate']
         result.fist_damage = dct['fist_damage']
         result.pos = dct['pos']
         result.map = dct['map']
@@ -166,6 +168,7 @@ class Hero(Actor):
         else:
             # command has the form (<kind of attack>, <direction>)
             self.attack(*command)
+        self.give_mana(self.mana_regeneration_rate)
             
 class Enemy(Actor):
     # additional attributes:
