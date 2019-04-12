@@ -30,11 +30,12 @@ def start_game():
                     continue
             elif status is game.WON:
                 # start the next dungeon
-                raise GameOver('you win')
+                break
             elif status is game.QUIT:
                 raise GameOver('quit')
             else:
                 raise ValueError('invalid game status')
+    raise GameOver('you won')
 while True:
     try:
         start_game()
