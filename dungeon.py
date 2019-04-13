@@ -35,10 +35,6 @@ class Map:
     def cleanup_at(self, pos):
         self[pos] = self.WALKABLE
 
-    def contains_treasure_at(self, pos):
-        # returns True iff self[pos] is a treasure
-        return isinstance(self[pos], treasures.TreasureChest)
-
     def pos_is_valid(self, pos):
         row, col = pos
         return row >= 0 and row < self.nrows and col >= 0 and col < self.ncols
@@ -53,6 +49,7 @@ class Map:
     
     @property
     def chars(self):
+        # returns a character matrix represented as a list of lists
         result = []
         for row in range(self.nrows):
             lst = []
@@ -78,7 +75,7 @@ class Map:
         row, col = pos
         self.matrix[row][col] = value
     
-    def positions(self, pos, direction):
+    def relative_posns(self, pos, direction):
         while True:
             pos = utils.move_pos(pos, direction)
             if self.pos_is_valid(pos):
@@ -88,36 +85,18 @@ class Map:
 
     @property
     def posns_lrtb(self):
-        # returns an iterator of the positions of self in the order
-        # left to right, top to bottom
+        # lrtb stands for left right top bottom.
+        # returns an iterator of the positions of self in the order left to right, top to bottom
         for rowi in range(self.nrows):
             for coli in range(self.ncols):
                 yield (rowi, coli)
     
-    def neighbours(self, pos):
-        # returns an iterator of the positions around @pos,
-        # starting from the top left and going clockwise.
-        
-        def fits(pos):
-            return 0 <= pos[0] < self.nrows and 0 <= pos[1] < self.ncols
-        
-        r, c = pos
-        candidates = ((r-1, c-1), (r-1, c), (r-1, c+1),
-                      (r, c-1), (r, c+1),
-                      (r+1, c-1), (r+1, c), (r+1, c+1))
-        
-        return filter(fits, candidates)
-
 class Game:
     WON = object()
     KILLED = object()
     QUIT = object()
     
     def __init__(self, hero, enemies, map):
-        # @hero should be a Hero instance whose map is @map
-        # @enemies should be a list of Enemy instances and each enemy's map should be @map
-        # @map should be a Map instance
-        
         self.hero = hero
         self.enemies = enemies
         self.map = map
@@ -133,7 +112,6 @@ class Game:
         #  ('weapon', 'up'), ..., ('weapon', 'right'),
         #  ('fist', 'up'), ..., ('fist', 'right'),
         #  ('spell', 'up', ...', ('spell', 'right')}
-        # TODO: handle user chars better
         # THIS FUNCTION DETERMINES THE USER CONTROL KEYS
 
         while True:
@@ -151,20 +129,13 @@ class Game:
 
     def actor_move(self, actor, direction):
         # @direction must be one of {'up', 'down', 'left', 'right'}
-        # if it is possible to move the actor in @direction, moves him and returns True;
-        # otherwise, return False
     
         new_pos = utils.move_pos(actor.pos, direction)
-        
         if not self.map.can_move_to(new_pos):
             return
-
-        if self.map.contains_treasure_at(new_pos):
+        if type(self.map[new_pos]) is treasures.TreasureChest:
             self.map[new_pos].open().give_to_actor(actor)
             self.map.cleanup_at(new_pos)
-
-        # at this point self.map[pos] contains a walkable.
-        # swap the walkable with self
         self.map[actor.pos] = self.map.WALKABLE if actor.pos != self.map.gateway_pos else self.map.GATEWAY
         self.map[new_pos] = actor
         actor.pos = new_pos
@@ -207,15 +178,12 @@ class Game:
             time.sleep(SECS)
         
         if by == 'spell':
-            spell = actor.spell
-            
+            spell = actor.spell            
             if actor.mana < spell.mana_cost:
                 return
-
             actor.take_mana(spell.mana_cost)
-
             anim_posns = []
-            for pos in itertools.islice(self.map.positions(actor.pos, direction), spell.cast_range):
+            for pos in itertools.islice(self.map.relative_posns(actor.pos, direction), spell.cast_range):
                 anim_posns.append(pos)
                 entity = self.map[pos]
                 if isinstance(entity, actors.Actor):
@@ -230,7 +198,7 @@ class Game:
                 animate_spell_cast(anim_posns, 'evaporate')
         else:
             # by is in {'weapon', 'fist'}
-            victim_pos = next(self.map.positions(actor.pos, direction), None)
+            victim_pos = next(self.map.relative_posns(actor.pos, direction), None)
             
             if victim_pos is None:
                 return
@@ -258,6 +226,7 @@ class Game:
         else:
             # command has the form (<kind of attack>, <direction>)
             self.actor_attack(hero, *command)
+        # at end of every turn, regenerate some mana
         hero.give_mana(hero.mana_regeneration_rate)
 
 
@@ -270,7 +239,7 @@ class Game:
                 # looks for the hero in the direction @direction
                 # returns None if @enemy can't see him in that direction
 
-                for pos in self.map.positions(enemy.pos, direction):
+                for pos in self.map.relative_posns(enemy.pos, direction):
                     entity = self.map[pos]
                     if type(entity) is actors.Hero:
                         return pos
@@ -335,7 +304,16 @@ class Game:
                 return True
             return False
 
-        def friendly():
+        behavior_handlers = {}
+        
+        def behavior(name):
+            def decorator(func):
+                behavior_handlers[name] = func
+                return func
+            return decorator
+
+        @behavior("friendly")
+        def handler():
             hero_pos, hero_direction = search_for_hero()
             if hero_pos is None:
                 move_to_last_seen()
@@ -343,7 +321,22 @@ class Game:
                 enemy.last_seen, enemy.hero_direction = hero_pos, hero_direction
                 move_to_last_seen()
 
-        def aggresive():
+        @behavior("aggresive")
+        def handler():
+            hero_pos, hero_direction = search_for_hero()
+            if hero_pos is None:
+                move_to_last_seen()
+            else:
+                enemy.last_seen = hero_pos
+                enemy.hero_direction = hero_direction
+                if hero_is_in_vicinity():
+                    near_attack()
+                else:
+                    if not far_attack():
+                        move_to_last_seen()
+
+        @behavior("rabid")
+        def handler():
             hero_pos, hero_direction = search_for_hero()
             if hero_pos is None:
                 if enemy.last_seen is None:
@@ -359,7 +352,12 @@ class Game:
                     if not far_attack():
                         move_to_last_seen()
 
-        eval(f'{enemy.behavior}()')
+
+        behavior_handler = behavior_handlers.get(enemy.behavior)
+        if behavior_handler is None:
+            raise ValueError(f'enemy has invalid behavior: "{enemy.behavior}"')
+
+        behavior_handler()
                     
     def reset(self):
         # resets the state of @self to what it was at the beginning
@@ -443,7 +441,7 @@ class Dungeon:
 
     @property
     def spawn_posns(self):
-        # returns an iterator of @self's spawn positions        
+        # returns an iterator of @self's spawn positions
         nrows = len(self.map_template)
         ncols = len(self.map_template[0])
         for rowi in range(nrows):

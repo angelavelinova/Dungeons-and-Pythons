@@ -76,8 +76,7 @@ class Enemy(Actor):
     #  - last_seen: the position the hero was last seen in.
     #  - hero_direction: always equal to utils.relative_direction(self.pos, self.last_seen);
     #                    it is included only for convenience.
-    #  if the enemy does not know where the hero is, self.last_seen and
-    #  self.hero_direction will both be None.
+    
 
     @staticmethod
     def from_dict(dct):
