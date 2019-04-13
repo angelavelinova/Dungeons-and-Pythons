@@ -36,6 +36,7 @@ def start_game():
             else:
                 raise ValueError('invalid game status')
     raise GameOver('you won')
+
 while True:
     try:
         start_game()
@@ -44,7 +45,7 @@ while True:
             break
 
         print(go)
-        print('press "y" to play again')
+        print('press space to play again')
         char = utils.get_char()
-        if char != "y":
+        if char != " ":
             break

@@ -1,16 +1,13 @@
 import random
 
 class TreasureChest:
-    def __init__(self, pos, map, treasures):
+    def __init__(self, pos, treasures):
         self.pos = pos
-        self.map = map
         self.treasures = treasures
-    
+
     def open(self):
-        # returns a random treasure from self.treasures and
-        # removes itself from the map
+        # returns a random treasure from self.treasures
         treasure = random.choice(self.treasures)
-        self.map.cleanup_at(self.pos)
         return treasure
 
 class Treasure:
