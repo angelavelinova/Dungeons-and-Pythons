@@ -8,22 +8,6 @@ import utils
 import sys
 import time
 
-class Display:
-    # a display is a sequence of character lines
-    # attributes:
-    #   - self.lines: a list of lists of characters.
-    #     the character lists may have different lengths.
-    
-    def refresh(self):
-        # updates the image on the screen based on the lines
-        raise NotImplementedError
-
-    def __getitem__(self, pos):
-        raise NotImplementedError
-
-    def __setitem__(self, pos):
-        raise NotImplementedError
-    
 class Map:
     WALKABLE = '.'
     ENEMY = 'E'
