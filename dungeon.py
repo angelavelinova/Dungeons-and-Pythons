@@ -7,6 +7,7 @@ import itertools
 import utils
 import sys
 import time
+import random
 
 class Map:
     WALKABLE = '.'
@@ -148,7 +149,7 @@ class Game:
                 return by, direction
 
 
-    def move_actor(self, actor, direction):
+    def actor_move(self, actor, direction):
         # @direction must be one of {'up', 'down', 'left', 'right'}
         # if it is possible to move the actor in @direction, moves him and returns True;
         # otherwise, return False
@@ -164,7 +165,7 @@ class Game:
 
         # at this point self.map[pos] contains a walkable.
         # swap the walkable with self
-        self.map[actor.pos] = self.map.WALKABLE
+        self.map[actor.pos] = self.map.WALKABLE if actor.pos != self.map.gateway_pos else self.map.GATEWAY
         self.map[new_pos] = actor
         actor.pos = new_pos
 
@@ -253,11 +254,12 @@ class Game:
         command = self.read_command()
         if type(command) is str:
             # command is one of {'up', 'down', 'left', 'right'}
-            self.move_actor(hero, command)
+            self.actor_move(hero, command)
         else:
             # command has the form (<kind of attack>, <direction>)
             self.actor_attack(hero, *command)
         hero.give_mana(hero.mana_regeneration_rate)
+
 
     def enemy_turn(self, enemy):
         def search_for_hero():
@@ -293,34 +295,72 @@ class Game:
                 enemy.hero_direction = None
                 return
 
-            self.move_actor(enemy, enemy.hero_direction)
-        
+            self.actor_move(enemy, enemy.hero_direction)
+            
         def hero_is_in_vicinity():
             # Returns True if hero is directly above, below, to the right
             # or to the left of @enemy.
             pos_row, pos_col = enemy.pos
-            hero_row, hero_col = hero_pos
+            hero_row, hero_col = enemy.last_seen
             return abs(pos_row - hero_row) <= 1 and abs(pos_col - hero_col) <= 1
 
-        def attack_hero():
+        def near_attack():
             # Call only when the hero is next to @enemy!
             # The enemy determines the attack type dealing the most
             # damage and inflicts it on the hero.
-            # TODO: make the enemy smarter
-            self.actor_attack(enemy, 'fist', enemy.hero_direction)
-        
-        hero_pos, hero_direction = search_for_hero()
-        if hero_pos is None:
-            # the enemy cannot see the hero
-            move_to_last_seen()
-        else:
-            enemy.last_seen = hero_pos
-            enemy.hero_direction = hero_direction
-            if hero_is_in_vicinity():
-                attack_hero()
+            
+            if enemy.weapon.damage >= enemy.spell.damage:
+                if enemy.weapon.damage > enemy.fist_damage:
+                    by = 'weapon'
+                else:
+                    by = 'fist'
             else:
+                if (enemy.fist_damage >= enemy.spell.damage
+                    or enemy.spell.mana_cost > enemy.mana):
+                    by = 'fist'
+                else:
+                    by = 'spell'
+            self.actor_attack(enemy, by, enemy.hero_direction)
+
+        def far_attack():
+            # Call when the hero is seen, but no immediately near @enemy.
+            # If it is possible to cast a spell that will damage the hero,
+            # this function casts the spell and returns True. Otherwise, it returns False.
+            
+            enemy_row, enemy_col = enemy.pos
+            hero_row, hero_col = enemy.last_seen
+            distance = abs((enemy_row - hero_row) + (enemy_col - hero_col))
+            if distance <= enemy.spell.cast_range and enemy.spell.mana_cost <= enemy.mana:
+                self.actor_attack(enemy, by='spell', direction=enemy.hero_direction)
+                return True
+            return False
+
+        def friendly():
+            hero_pos, hero_direction = search_for_hero()
+            if hero_pos is None:
+                move_to_last_seen()
+            else:
+                enemy.last_seen, enemy.hero_direction = hero_pos, hero_direction
                 move_to_last_seen()
 
+        def aggresive():
+            hero_pos, hero_direction = search_for_hero()
+            if hero_pos is None:
+                if enemy.last_seen is None:
+                    self.actor_move(enemy, random.choice(('up', 'down', 'left', 'right')))
+                else:
+                    move_to_last_seen()
+            else:
+                enemy.last_seen = hero_pos
+                enemy.hero_direction = hero_direction
+                if hero_is_in_vicinity():
+                    near_attack()
+                else:
+                    if not far_attack():
+                        move_to_last_seen()
+
+        eval(f'{enemy.behavior}()')
+                    
     def reset(self):
         # resets the state of @self to what it was at the beginning
         cpy = copy.deepcopy(self.initial_state)

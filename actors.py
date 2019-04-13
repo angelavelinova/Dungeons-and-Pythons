@@ -82,12 +82,13 @@ class Enemy(Actor):
     @staticmethod
     def from_dict(dct):
         # @dct must have the keys
-        # {'health', 'mana', 'fist_damage', 'pos', 'game'}
+        # {'health', 'mana', 'fist_damage', 'pos', 'behavior'}
         result = object.__new__(Enemy)
         result.health = result.max_health = dct['health']
         result.mana = result.max_mana = dct['mana']
         result.fist_damage = dct['fist_damage']
         result.pos = dct['pos']
+        result.behavior = dct['behavior']
         result.weapon = treasures.Weapon()
         result.spell = treasures.Spell()
         result.last_seen = result.hero_direction = None
