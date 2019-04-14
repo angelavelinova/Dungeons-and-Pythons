@@ -10,20 +10,18 @@ import time
 import random
 
 class Map:
-    WALKABLE = '.'
-    ENEMY = 'E'
-    GATEWAY = 'G'
-    TREASURE_CHEST = 'T'
-    HERO = 'H'
-    OBSTACLE = '#'
-    NORTH_BORDER = '#'
-    SOUTH_BORDER = '#'
-    WEST_BORDER = '#'
-    EAST_BORDER = '#'
-    
-    def __init__(self, matrix):
-        self.matrix = matrix
-                
+    # attributes:
+    #   - self.matrix: a list of lists representing the map.
+    #     Each entry in self.matrix is one of:
+    #         - an Actor or TreasureChest instance
+    #         - WALKABLE or OBSTACLE
+    #   - self.gateway_pos: the coordinates of the gateway in the map
+
+    # COMPARE THESE WITH THE == OPERATOR NOT WITH is
+    # is MAY NOT WORK WHEN RESTARTING THE GAME AND COPYING THE MAP
+    WALKABLE = 'w'
+    OBSTACLE = 'o'
+        
     @property
     def nrows(self):
         return len(self.matrix)
@@ -44,26 +42,46 @@ class Map:
         # at that position that prevents you from moving there.
         return (self.pos_is_valid(pos)
                 and (isinstance(self[pos], treasures.TreasureChest)
-                     or self[pos] is self.WALKABLE
-                     or self[pos] is self.GATEWAY))
+                     or self[pos] is self.WALKABLE))
+
+    def is_walkable(self, pos):
+        return self[pos] == self.WALKABLE
+
+    def make_walkable(self, pos):
+        self[pos] = self.WALKABLE
+
+    def is_obstacle(self, pos):
+        return self[pos] == self.OBSTACLE
     
     @property
     def chars(self):
         # returns a character matrix represented as a list of lists
-        result = []
-        for row in range(self.nrows):
-            lst = []
-            for col in range(self.ncols):
-                if isinstance(self[row,col], treasures.TreasureChest):
-                    lst.append(self.TREASURE_CHEST)
-                elif isinstance(self[row,col], actors.Hero):
-                    lst.append(self.HERO)
-                elif isinstance(self[row,col], actors.Enemy):
-                    lst.append(self.ENEMY)
-                else:
-                    lst.append(self[row,col])
-            result.append(lst)
-        return result
+        WALKABLE = '.'
+        OBSTACLE = '#'        
+        GATEWAY = 'G'
+        HERO = 'H'
+        ENEMY = 'E'
+        TREASURE_CHEST = 'T'
+
+        def to_char(pos):
+            entity = self[pos]
+            if self.is_obstacle(pos):
+                return OBSTACLE                
+            elif type(entity) is actors.Hero:
+                return HERO
+            elif type(entity) is actors.Enemy:
+                return ENEMY
+            elif pos == self.gateway_pos:
+                return GATEWAY
+            elif self.is_walkable(pos):
+                return WALKABLE
+            elif type(entity) is treasures.TreasureChest:
+                return TREASURE_CHEST
+            else:
+                raise ValueError(f'invalid entity at {pos}: {entity}')            
+            
+        return [[to_char((row, col)) for col in range(self.ncols)]
+                for row in range(self.nrows)]
 
     def __getitem__(self, pos):
         # pos must be a pair (<row-index>, <column-index>)
@@ -136,7 +154,7 @@ class Game:
         if type(self.map[new_pos]) is treasures.TreasureChest:
             self.map[new_pos].open().give_to_actor(actor)
             self.map.cleanup_at(new_pos)
-        self.map[actor.pos] = self.map.WALKABLE if actor.pos != self.map.gateway_pos else self.map.GATEWAY
+        self.map.make_walkable(actor.pos)
         self.map[new_pos] = actor
         actor.pos = new_pos
 
@@ -191,7 +209,7 @@ class Game:
                     self.remove_body_if_dead(entity)
                     animate_spell_cast(anim_posns, end='actor')
                     break
-                elif entity != self.map.WALKABLE:
+                elif not self.map.is_walkable(pos):
                     animate_spell_cast(anim_posns, 'other')
                     break
             else:
@@ -240,10 +258,9 @@ class Game:
                 # returns None if @enemy can't see him in that direction
 
                 for pos in self.map.relative_posns(enemy.pos, direction):
-                    entity = self.map[pos]
-                    if type(entity) is actors.Hero:
+                    if type(self.map[pos]) is actors.Hero:
                         return pos
-                    elif entity != self.map.WALKABLE:
+                    elif not self.map.is_walkable(pos):
                         # something blocks @self's view
                         return None
                 return None
@@ -432,7 +449,7 @@ class Dungeon:
     
     @staticmethod
     def from_dict(dct):
-        result = Dungeon.__new__(Dungeon)
+        result = object.__new__(Dungeon)
         result.hero_partial_dict = dct['hero']
         result.enemy_data = dct['enemies']
         result.map_template = dct['map_template']
@@ -459,13 +476,18 @@ class Dungeon:
         return itertools.repeat(self.enemy_data['all'])
     
     def create_game(self, spawn_pos):
-        # @spawn_location must be one of @self's spawn locations.
-        # Returns the Game instance with the hero at @spawn_location.
+        # @spawn_pos must be one of @self's spawn positions.
+        # Returns the Game instance with the hero at @spawn_pos
 
         enemy_partial_dicts = self.enemy_partial_dicts
         hero = None
         enemies = []
-        the_map = Map([list(row) for row in self.map_template])
+        
+        # map initialization
+        the_map = object.__new__(Map)
+        the_map.matrix = [list(row) for row in self.map_template]
+
+        # replace characters in the_map with the correct objects
         for pos in the_map.posns_lrtb:
             char = the_map[pos]
             if char == 'S':
@@ -487,7 +509,7 @@ class Dungeon:
                 the_map[pos] = enemy
             elif char == 'G':
                 the_map.gateway_pos = pos
-                the_map[pos] = Map.GATEWAY
+                the_map[pos] = Map.WALKABLE
             elif char == '#':
                 the_map[pos] = Map.OBSTACLE
             elif char == '.':
