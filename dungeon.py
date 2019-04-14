@@ -465,9 +465,10 @@ class Dungeon:
             for coli in range(ncols):
                 if self.map_template[rowi][coli] == 'S':
                     yield (rowi, coli)
-        
+
+    @property
     def games(self):
-        return (self.create_game(spawn_pos) for spawn_pos in self.spawn_posns)
+        return [self.create_game(spawn_pos) for spawn_pos in self.spawn_posns]
 
     @property
     def enemy_partial_dicts(self):        

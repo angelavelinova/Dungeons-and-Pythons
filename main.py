@@ -11,7 +11,7 @@ dungeons = parse_dungeons()
 
 def start():
     for current_dungeon in dungeons:
-        games = list(current_dungeon.games())
+        games = current_dungeon.games
         for i, game in enumerate(games):
             status = game.play()
             if status is game.KILLED:
@@ -29,6 +29,19 @@ def start():
                 raise ValueError('invalid game status')
     return 'won'
 
+def play_again():
+    # used to determine if the user want to play again after
+    # the whole game is over (i.e. when he wins or loses)
+    
+    print('press space to play again or "q" to quit')
+    while True:
+        answer = utils.get_char()
+        if answer == ' ':
+            return True
+        elif answer == 'q':
+            return False
+        
+
 while True:
     status = start()
     if status == 'quit':
@@ -39,7 +52,6 @@ while True:
         else:
             print('you lose')
             
-        print('press space to play again')
-        char = utils.get_char()
-        if char != " ":
+        if not play_again():
             break
+        
