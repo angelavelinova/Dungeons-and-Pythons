@@ -404,10 +404,24 @@ class Game:
         
     def play(self):
         while True:
-            self.refresh_display()
-            
             try:
+                self.refresh_display()
                 self.hero_turn()
+                self.refresh_display()
+
+                if self.hero.pos == self.map.gateway_pos:
+                    return self.WON
+
+                # after the hero's turn, some enemies may be dead, so stop tracking them
+                self.enemies = [enemy for enemy in self.enemies if enemy.is_alive]
+
+                for enemy in self.enemies:
+                    self.enemy_turn(enemy)
+
+                # after the enemies' turn, the hero may have died
+                if not self.hero.is_alive:
+                    return self.KILLED
+                
             except KeyboardInterrupt:
                 command = input('>>> ')
                 if command == 'q':
@@ -418,21 +432,6 @@ class Game:
                 else:
                     # unknown command
                     continue
-
-            self.refresh_display()
-                
-            if self.hero.pos == self.map.gateway_pos:
-                return self.WON
-            
-            # after the hero's turn, some enemies may be dead, so stop tracking them
-            self.enemies = [enemy for enemy in self.enemies if enemy.is_alive]
-            
-            for enemy in self.enemies:
-                self.enemy_turn(enemy)
-                
-            # after the enemies' turn, the hero may have died
-            if not self.hero.is_alive:
-                return self.KILLED
 
 class Dungeon:
     # attributes:
