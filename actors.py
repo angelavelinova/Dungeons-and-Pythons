@@ -4,17 +4,6 @@ import treasures
 import itertools
 
 class Actor:
-    # base class for Enemy and Hero
-    # all instances of Actor should provide the following attributes:
-    # - health
-    # - max_health
-    # - mana
-    # - max_mana
-    # - pos: a valid position within the map
-    # - weapon
-    # - spell
-    # - fist_damage
-    
     @property
     def is_alive(self):
         return self.health != 0
@@ -47,10 +36,6 @@ class Actor:
             
                             
 class Hero(Actor):
-    # a Hero has the following additional attributes:
-    # - name
-    # - title
-
     @staticmethod
     def from_dict(dct):
         # the dict must have the keys
@@ -72,11 +57,6 @@ class Hero(Actor):
         return f"{self.name} the {self.title}"
 
 class Enemy(Actor):
-    # additional attributes:
-    #  - last_seen: the position the hero was last seen in.
-    #  - hero_direction: always equal to utils.relative_direction(self.pos, self.last_seen);
-    #                    it is included only for convenience.    
-
     @staticmethod
     def from_dict(dct):
         # @dct must have the keys

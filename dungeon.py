@@ -14,7 +14,7 @@ class Map:
     #   - self.matrix: a list of lists representing the map.
     #     Each entry in self.matrix is one of:
     #         - an Actor or TreasureChest instance
-    #         - WALKABLE or OBSTACLE
+    #         - Map.WALKABLE or Map.OBSTACLE
     #   - self.gateway_pos: the coordinates of the gateway in the map
 
     # COMPARE THESE WITH THE == OPERATOR NOT WITH is
