@@ -212,6 +212,7 @@ class Dungeon:
         hero = None
         enemies = []
         the_map = Map([list(row) for row in self.map_template])
+        the_map.gateway_pos = None
         for pos in the_map.posns_lrtb:
             char = the_map[pos]
             if char == 'S':
