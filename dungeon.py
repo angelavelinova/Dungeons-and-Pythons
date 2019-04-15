@@ -415,6 +415,9 @@ class Game:
                 # after the hero's turn, some enemies may be dead, so stop tracking them
                 self.enemies = [enemy for enemy in self.enemies if enemy.is_alive]
 
+                if not self.enemies:
+                    return self.WON
+
                 for enemy in self.enemies:
                     self.enemy_turn(enemy)
 
@@ -486,6 +489,7 @@ class Dungeon:
         # map initialization
         the_map = object.__new__(Map)
         the_map.matrix = [list(row) for row in self.map_template]
+        the_map.gateway_pos = None
 
         # replace characters in the_map with the correct objects
         for pos in the_map.posns_lrtb:
